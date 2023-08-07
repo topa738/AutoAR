@@ -120,7 +120,7 @@
 					mesh1.castShadow = true;
 					mesh1.receiveShadow = true;
 					mesh1.visible=false;
-					console.log(mesh1)
+					console.log(mesh1.children[0])
 				
 					siguente();
 					},
@@ -156,6 +156,7 @@
 					//mesh1.scale.addScalar(-0.99);
 					//mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z+1 );
 					//mesh1.rotation.set( Math.PI/2, Math.PI, 0, 'XYZ' );
+					
 					controles=false
 					const geometry = new THREE.PlaneGeometry( 0.1, 0.1 );
 					const flecha = new THREE.TextureLoader().load('./img/flecha.png');
@@ -164,6 +165,7 @@
 					accelerar.rotation.set( 0, 0, Math.PI/2, 'XYZ' );
 					accelerar.name='control';
 					accelerar.name2='adelante';
+					console.log(mesh1)
 					
 
 					group.add(accelerar);
@@ -353,6 +355,13 @@
 				}
 				mesh1.position.z=mesh1.position.z+velocidad;
 				renderer.render( scene, camera );
+				mesh1.children[0].children[0].children.forEach(element => {
+					//if(element.name=="wheels"){
+						//element.position.x=Math.random()*20;
+					//}	
+					
+					
+				});
 
 			}
 
