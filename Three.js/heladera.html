@@ -1,0 +1,253 @@
+re
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Yeso-AR CUP</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link type="text/css" rel="stylesheet" href="main.css">
+
+</head>
+
+<body>
+  
+  <div id="progress-bar-container">
+	<label for="progress-bar">Loading...</label>
+    <progress id="progress-bar" value="0" max="100"></progress>
+</div>
+<script async src="https://unpkg.com/es-module-shims@1.7.3/dist/es-module-shims.js"></script>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.152.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.152.0/examples/jsm/"
+    }
+  }
+</script>
+
+
+
+<script type="module">
+			import * as THREE from 'three';
+			
+			import { GLTFLoader } from 'https://unpkg.com/three@0.152.0/examples/jsm/loaders/GLTFLoader.js';
+            import { ARButton } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/ARButton.js';
+           // import { XREstimatedLight } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/XREstimatedLight.js';
+
+			let camera, scene, renderer;
+			let controller;
+			let defaultEnvironment;
+			let container;
+			var mesh;
+
+			let reticle;
+
+			let hitTestSource = null;
+			let hitTestSourceRequested = false;
+			
+
+			init();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 20 );
+
+				const defaultLight = new THREE.HemisphereLight( 0xffffff, 0xbbbbff, 1 );
+				defaultLight.position.set( 0.5, 1, 0.25 );
+				scene.add( defaultLight );
+
+
+				renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.outputEncoding = THREE.sRGBEncoding;
+				renderer.useLegacyLights = false;
+				renderer.xr.enabled = true;
+				container.appendChild( renderer.domElement );
+
+			/*
+
+				const xrLight = new XREstimatedLight( renderer );
+
+				xrLight.addEventListener( 'estimationstart', () => {
+
+					// Swap the default light out for the estimated one one we start getting some estimated values.
+					scene.add( xrLight );
+					scene.remove( defaultLight );
+
+					// The estimated lighting also provides an environment cubemap, which we can apply here.
+					if ( xrLight.environment ) {
+
+						scene.environment = xrLight.environment;
+
+					}
+
+				} );
+
+				xrLight.addEventListener( 'estimationend', () => {
+
+					// Swap the lights back when we stop receiving estimated values.
+					scene.add( defaultLight );
+					scene.remove( xrLight );
+
+					// Revert back to the default environment.
+					scene.environment = defaultEnvironment;
+
+				} );
+
+				*/
+				// In order for lighting estimation to work, 'light-estimation' must be included as either an optional or required feature.
+			const button=ARButton.createButton( renderer, { requiredFeatures: ['hit-test'] } );
+				document.body.appendChild(button);
+				button.style.backgroundColor = '#4bb62d';
+				
+				function onSelect() {
+					if (reticle.visible) {
+						
+						reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+						scene.add( mesh );
+						
+					}
+				}
+
+
+					controller = renderer.xr.getController( 0 );
+					controller.addEventListener( 'select', onSelect );
+					scene.add( controller );
+
+					reticle = new THREE.Mesh(
+					new THREE.RingGeometry( 0.15, 0.2, 32 ).rotateX( + Math.PI / 2 ),
+					new THREE.MeshBasicMaterial()
+					);
+					reticle.matrixAutoUpdate = false;
+					reticle.visible = false;
+					scene.add( reticle );
+				
+
+			
+				const loader = new GLTFLoader();
+				var progressbar=document.getElementById('progress-bar');
+				
+				loader.load(
+					'./modelos/auto.glb',
+					function ( gltf ) {
+						//const light = new THREE.PointLight( 0xffffff );
+					//camera.add( light );
+
+					mesh = gltf.scene.children[ 0 ];
+					//mesh.position.set( 0, 0, -1.3 );
+					//mesh.rotation.set( Math.PI / 2, 0, 0 );
+					mesh.scale.set( 0.1, 0.1, 0.1 );
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+				
+					siguente();
+					},
+					function ( xhr ) {
+
+						progressbar.value= ( xhr.loaded / xhr.total) * 100;
+					},
+					function ( error ) {
+						console.error( error );
+					}
+				);
+				function siguente(){
+					
+					//quito el contenido de carga
+					var contenedor = document.getElementById('progress-bar-container');
+					//console.log(contenedor)
+					contenedor.style.visibility='hidden';
+					contenedor.style.opacity=0;
+					window.addEventListener( 'resize', onWindowResize );
+					animate();
+					
+
+				
+
+			}
+		}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			
+
+			function animate() {
+
+				renderer.setAnimationLoop( render );
+
+				}
+
+			function render( timestamp, frame ) {
+
+				if ( frame ) {
+
+					const referenceSpace = renderer.xr.getReferenceSpace();
+					const session = renderer.xr.getSession();
+
+					if ( hitTestSourceRequested === false ) {
+
+						session.requestReferenceSpace( 'viewer' ).then( function ( referenceSpace ) {
+
+						session.requestHitTestSource( { space: referenceSpace } ).then( function ( source ) {
+
+							hitTestSource = source;
+
+						} );
+
+						} );
+
+						session.addEventListener( 'end', function () {
+
+							hitTestSourceRequested = false;
+							hitTestSource = null;
+
+						} );
+
+						hitTestSourceRequested = true;
+
+					}
+
+					if ( hitTestSource ) {
+
+						const hitTestResults = frame.getHitTestResults( hitTestSource );
+
+						if ( hitTestResults.length ) {
+
+							const hit = hitTestResults[ 0 ];
+
+							reticle.visible = true;
+							reticle.matrix.fromArray( hit.getPose( referenceSpace ).transform.matrix );
+
+						} else {
+
+							reticle.visible = false;
+
+						}
+
+					}
+
+				}
+
+				renderer.render( scene, camera );
+
+				}
+			
+
+		</script>
+
+</body>
+</html> 
