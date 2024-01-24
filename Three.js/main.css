@@ -142,6 +142,24 @@ a, button, input, select {
     box-sizing: border-box;
     pointer-events: none; /* Para que el marco no afecte la interacción con el contenido */
 }
+.game-controls {
+	text-align: center;
+}
+
+button {
+	font-size: 16px;
+	padding: 10px 20px;
+	margin: 5px;
+	cursor: pointer;
+	background-color: #4CAF50; /* Verde */
+	color: white;
+	border: none;
+	border-radius: 5px;
+}
+
+button:hover {
+	background-color: #45a049; /* Cambia el color al pasar el ratón sobre el botón */
+}
 
 
 

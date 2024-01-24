@@ -6,16 +6,21 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<link type="text/css" rel="stylesheet" href="main.css">
 	</head>
+
 	<body>
+
         <div id="progress-bar-container">
             <label for="progress-bar">Loading...</label>
             <progress id="progress-bar" value="0" max="100"></progress>
         </div>
-
-		<div id="info">
-			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> ar - hit test<br/>(Chrome Android 81+)
+		<div class="game-controls">
+			<button id="moveForward">Adelante</button>
+			<div>
+				<button id="moveLeft">Izquierda</button>
+				<button id="moveBackward">Atrás</button>
+				<button id="moveRight">Derecha</button>
+			</div>
 		</div>
-
 		<!-- Import maps polyfill -->
 		<!-- Remove this when import maps will be widely supported -->
 		<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -33,7 +38,9 @@
 			import * as THREE from 'three';
 			
 			import { GLTFLoader } from 'https://unpkg.com/three@0.152.0/examples/jsm/loaders/GLTFLoader.js';
-            import { ARButton } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/ARButton.js';
+            //import { ARButton } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/ARButton.js';
+			import { ARButton } from './ARButton.js';
+			import { getControles } from "./controles.js"
            // import { XREstimatedLight } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/XREstimatedLight.js';
 
 
@@ -43,10 +50,14 @@
 			let controller;
             var mesh1;
 			var group,ultimo;
+			var colocado=false;
 			const tempMatrix = new THREE.Matrix4();
 			let reticle,controles=true;
-			var accion='stop';
+			var accion='stop',timeout=500;
+			let accionTimeout;
+
 			var velocidad=0;
+			var carDirection = new THREE.Vector3(0, 0, 1);
 
 			let hitTestSource = null;
 			let hitTestSourceRequested = false;
@@ -67,19 +78,26 @@
 				light.position.set( 0.5, 1, 0.25 );
 				scene.add( light );
 
-				//
+				
 
-				renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+				renderer = new THREE.WebGLRenderer( { alpha: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setSize( window.innerWidth, window.innerHeight);
+				console.log(window.innerWidth, window.innerHeight )
 				renderer.xr.enabled = true;
 				container.appendChild( renderer.domElement );
 
 				//
+				const arButton=ARButton.createButton( renderer, { requiredFeatures: [ 'hit-test' ] } )
+				document.body.appendChild( arButton );
+				arButton.style.backgroundColor = '#00FF00'; // Código hexadecimal para el color verde
+				arButton.style.color = 'white'; // Cambia el color del texto para que sea legible en el fondo verde
 
-				document.body.appendChild( ARButton.createButton( renderer, { requiredFeatures: [ 'hit-test' ] } ) );
+// Otros estilos opcionales
+				arButton.style.border = '1px solid #00FF00'; // Borde verde para resaltar el botón
+				arButton.style.padding = '10px';
 
-				//
+
 
 				const geometry = new THREE.CylinderGeometry( 0.1, 0.1, 0.2, 32 ).translate( 0, 0.1, 0 );
 
@@ -89,7 +107,7 @@
 				raycaster = new THREE.Raycaster();
 
 				controller = renderer.xr.getController( 0 );
-				controller.addEventListener( 'selectend', onSelect );
+				controller.addEventListener( 'selectstart', onSelect );
 				controller.addEventListener( 'selectend', onSelectEnd );
 				scene.add( controller );
 
@@ -108,19 +126,18 @@
 				var progressbar=document.getElementById('progress-bar');
 				
 				loader.load(
-					'./modelos/auto.glb',
+					'./modelos/autogrande.glb',
 					function ( gltf ) {
 
 					mesh1 = gltf.scene.children[ 0 ];
-					
-			
+
 					//mesh1.scale.set( 0.005, 0.005, 0.005 );
-				
+						console.log(mesh1);
 
 					mesh1.castShadow = true;
 					mesh1.receiveShadow = true;
 					mesh1.visible=false;
-					console.log(mesh1)
+					console.log()
 				
 					siguente();
 					},
@@ -136,95 +153,79 @@
 					
 					//quito el contenido de carga
 					var contenedor = document.getElementById('progress-bar-container');
-					//console.log(contenedor)
 					contenedor.style.visibility='hidden';
 					contenedor.style.opacity=0;
 					window.addEventListener( 'resize', onWindowResize );
-					
-					
-
-				
-
 			}
-
 			function onSelect() {
 
 				if ( reticle.visible && controles ) {
 					
 					reticle.matrix.decompose(mesh1.position, mesh1.quaternion, mesh1.scale);
 					scene.add( mesh1 );
-					//mesh1.scale.addScalar(-0.99);
-					//mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z+1 );
-					//mesh1.rotation.set( Math.PI/2, Math.PI, 0, 'XYZ' );
-					controles=false
-					const geometry = new THREE.PlaneGeometry( 0.1, 0.1 );
-					const flecha = new THREE.TextureLoader().load('./img/flecha.png');
-    				const materialflecha= new THREE.MeshStandardMaterial({map: flecha});
-					const accelerar= new THREE.Mesh( geometry, materialflecha );
-					accelerar.rotation.set( 0, 0, Math.PI/2, 'XYZ' );
-					accelerar.name='control';
-					accelerar.name2='adelante';
-					
-
-					group.add(accelerar);
-					const atrass= new THREE.Mesh( geometry, materialflecha );
-					atrass.name='control';
-					atrass.name2='atras';
-					atrass.rotation.set( 0, 0, -Math.PI/2, 'XYZ' );
-					atrass.position.y=-0.2
-					group.add(atrass);
-					const stopimg = new THREE.TextureLoader().load('./img/stop.png');
-    				const materialstop= new THREE.MeshStandardMaterial({map: flecha});
-					const stop= new THREE.Mesh( geometry, materialstop );
-					stop.name='control';
-					stop.name2='stop';
-					stop.rotation.set( 0, 0, 0, 'XYZ' );
-					stop.position.y=-0.1
-					group.add(stop);
+					mesh1.scale.addScalar(-0.998);
+					mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z);
+					mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
+					controles=false;
+					group=getControles(group);//creo los controles
 					mesh1.visible=true;
+					colocado=true;
 
 
 					
 
 				}else{
 					//const controller = event.target;
-
 					const intersections = getIntersections( controller );
+
 					if ( intersections.length > 0 ) {
-					const intersection = intersections[ 0 ];
-					const object = intersection.object;
-					console.log(object);
-					if(object.name=='control' && object.name2=='adelante'){
-						accion='adelante';
+						const intersection = intersections[0];
+						const object = intersection.object;
+						console.log(intersections);
+						if (object.name == 'control' && object.name2 == 'adelante') {
+							accion = 'adelante';
+							
 
-						console.log('pasa por aca,adelante');
-					}if(object.name=='control' && object.name2=='atras'){
-						
-						accion='atras';
-						console.log('pasa por aca,no adela');
-					}if(object.name=='control' && object.name2=='stop'){
-						accion='stop';
-						console.log('pasa por aca,no adela');
+
+							console.log('pasa por aca,adelante');
+						}
+						if (object.name == 'control' && object.name2 == 'atras') {
+
+							accion = 'atras';
+							
+
+							console.log('pasa por aca,no adela');
+						}
+						if ( object.name2 == 'stop' ) {
+							accion = 'stop';
+							console.log('pasa por aca,no adela');
+						}
+						controller.userData.selected = object;
+
 					}
-					//ya obtenido el objeto
-					controller.userData.selected = object;
-
-					}
+					console.log("pasa")
 				}
-
 				}
-				
-				
-
-				
 			}
-			function onSelectEnd(  ) {
-				if(accion=='adelante' || accion=='atras'){
-				//	accion='stop'	
-				}else{
 
-				}
+			function onSelectEnd() {
+    if (accion === 'adelante' || accion === 'atras') {
+        // Cancela el temporizador actual si existe
+        clearTimeout(accionTimeout);
 
+        // Configura un nuevo temporizador y extiende el tiempo
+        accionTimeout = setTimeout(function() {
+            accion = 'stop';
+        }, timeout);
+        // Puedes ajustar el tiempo extendido si es necesario
+        //timeout += 500; // por ejemplo, aumentar en 500 milisegundos cada vez
+    } else {
+        // Otras acciones o código aquí si es necesario
+    }
+}
+
+			function updateCarPosition() {
+				mesh1.position.addScaledVector(carDirection, velocidad);
 			}
 
 			function getIntersections( controller ) {
@@ -314,7 +315,8 @@
 							if(ultimo==object){
 
 							}else{
-								if(ultimo!=undefined){ultimo.material.opacity=1
+								if(ultimo!=undefined){
+									ultimo.material.opacity=1
 								ultimo=object
 								ultimo.material.opacity=0.5}else{
 									ultimo=object
@@ -327,32 +329,76 @@
 					
 				}
 				if(mesh1.visible==true){
-					group.position.set( 0.2, 0, - 1 ).applyMatrix4( camera.matrixWorld );
+					group.position.set( 0.07, 0.5, - 0.5 ).applyMatrix4( camera.matrixWorld );
 					group.quaternion.setFromRotationMatrix( camera.matrixWorld );
 				}
 
 					
 				}
-				if(accion=='adelante'){
-					if(velocidad<0.06){
-						velocidad=velocidad+0.005
-						console.log('adelante')
-					}		
-				}
-				if(accion=='atras'){
-					if(velocidad>-0.06){
-						velocidad=velocidad-0.005
-					}	
-				}
-				if(accion=='stop'){
+				if (accion == 'adelante') {
+					if (velocidad < 0.03) {
+    velocidad = velocidad + 0.001;
+
+    // Ajustar la rotación del volante (carDirection) de manera suave
+    const giroVolante = 0.02;  // Ajusta este valor según sea necesario
+
+    const giroZ = camera.rotation.z;
+
+    // Usamos el valor absoluto de giroVolante para asegurarnos de que el auto gire en la dirección del volante
+    carDirection.set(
+        Math.cos(giroZ + Math.abs(giroVolante)),
+        0,
+        Math.sin(giroZ + Math.abs(giroVolante))
+    );
+	///mesh1.rotation.z = giroZ + giroVolante;
+
+    console.log('adelante');
+}
+
+
+
+
+}
+
+if (accion == 'atras') {
+    if (velocidad > -0.03) {
+		
+		const giroZ = camera.rotation.z;
+        velocidad = velocidad - 0.001;
+		const giroVolante = 0.02;  // Ajusta este valor según sea necesario
+		carDirection.set(
+        Math.cos(giroZ + Math.abs(giroVolante)),
+        0,
+        Math.sin(giroZ + Math.abs(giroVolante))
+    );
+
+        
+    }
+}
+
+				if(accion=='stop'){ //reducira el valor hasta que llegue a cero 
 					if(velocidad>0){
-						velocidad=velocidad-0.005
+						velocidad=velocidad-0.001
+						//mesh1.rotation.z-=camera.rotation.z/ 90;
+						carDirection.set(camera.rotation.z/ 90, 0,camera.rotation.x/ 90);
 					}if(velocidad<0){
-						velocidad=velocidad+0.005
+						velocidad=velocidad+0.001
+						//mesh1.rotation.z-=camera.rotation.z/ 90;
+						carDirection.set(camera.rotation.z/ 90, 0,camera.rotation.x/ 90);
+					}
+					if(velocidad==0){
+						carDirection.set(0, 0,0);
 					}
 				}
-				mesh1.position.z=mesh1.position.z+velocidad;
+				updateCarPosition();
+
 				renderer.render( scene, camera );
+
+			
+
+				
+			
+				carDirection.normalize();
 
 			}
 
