@@ -117,7 +117,7 @@
 				scene.add( controller );
 
 				reticle = new THREE.Mesh(
-					new THREE.RingGeometry( 0.15, 0.2, 32 ).rotateX( - Math.PI / 2 ),
+					new THREE.RingGeometry( 0.1, 0.15, 32 ).rotateX( - Math.PI / 2 ),
 					new THREE.MeshBasicMaterial()
 				);
 				reticle.matrixAutoUpdate = false;
@@ -131,7 +131,7 @@
 				var progressbar=document.getElementById('progress-bar');
 				
 				loader.load(
-					'./modelos/auto_basico.glb',
+					'./modelos/autogrande.glb',
 					function ( gltf ) {
 
 					mesh1 = gltf.scene.children[ 0 ];
@@ -146,7 +146,8 @@
 					},
 					function ( xhr ) {
 
-						progressbar.value= ( xhr.loaded / xhr.total) * 100;
+						//progressbar.value= ( xhr.loaded / xhr.total) * 100;
+						console.log(( xhr.loaded / xhr.total) * 100);
 					},
 					function ( error ) {
 						console.error( error );
@@ -168,10 +169,10 @@
 					
 					reticle.matrix.decompose(mesh1.position, mesh1.quaternion, mesh1.scale);
 					scene.add( mesh1 );
-					mesh1.scale.addScalar(-0.9);
+					mesh1.scale.addScalar(-0.995);
 					mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z);
-					//mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
-					mesh1.rotation.y=Math.PI/2;
+					mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
+					mesh1.rotation.y=Math.PI;
 					controles=false;
 					group=getControles(group);//creo los controles
 					mesh1.visible=true;
@@ -215,6 +216,35 @@
 				}
 				}
 			}
+			function volante(){
+				if((camera.rotation.z>=1.7 || camera.rotation.z<=1.3) ){
+					console.log("por aca+")
+					volantegiro()
+				}else{console.log("por aca-")}
+				
+		}
+		function volantegiro(){
+			if(camera.rotation.z-ultimogiro>0){//+
+					if(grados>Math.PI){
+						if(grados>0){//+
+							grados=grados*-1;
+						}
+						grados=grados+0.005;
+
+					}else{
+						grados=grados+0.005;
+					}
+				}else{
+					if(grados<-Math.PI){
+						if(grados<0){//+
+							grados=grados*-1;
+						}
+						grados=grados-0.005;
+					}else{
+						grados=grados-0.005;
+					}
+				}
+		}
 
 			function onSelectEnd() {
     if (accion === 'adelante' || accion === 'atras') {
@@ -240,6 +270,7 @@
 	function updateCarPosition() {
     
 	mesh1.position.addScaledVector(carDirection, velocidad);
+	mesh1.rotation.z=grados;
 
    
 
@@ -247,16 +278,10 @@
 
 			function giroAuto(giroZ){
 		carDirection.set(
-        Math.cos(giroZ + Math.abs(0.5)),
+			Math.sin(giroZ ),
         0,
-        Math.sin(giroZ + Math.abs(0.5))	
-
-		
-    );
-	
-	
-	
-}
+        	 Math.cos(giroZ )
+    );}
 
 			function getIntersections( controller ) {
 				tempMatrix.identity().extractRotation( controller.matrixWorld );
@@ -359,7 +384,7 @@
 					
 				}
 				if(mesh1.visible==true){
-					group.position.set( 0.07, 0.5, - 0.5 ).applyMatrix4( camera.matrixWorld );
+					group.position.set( 0.2, 0.2, - 0.5 ).applyMatrix4( camera.matrixWorld );
 					group.quaternion.setFromRotationMatrix( camera.matrixWorld );
 				}
 
@@ -368,6 +393,7 @@
 				if (accion == 'adelante') {
 					if (velocidad < 0.03) {
 		velocidad = velocidad + 0.001;
+		volante();
 		giroAuto(grados,0.5);
 			}
 			}
@@ -375,6 +401,7 @@
 				if (accion == 'atras') {
 					if (velocidad > -0.03) {
 						velocidad = velocidad - 0.001;
+						volante();
 						giroAuto(grados,0.5);
 						
 					}
@@ -385,12 +412,13 @@
 					if(velocidad>0){
 						velocidad=velocidad-0.001
 						//mesh1.rotation.z-=camera.rotation.z/ 90;
+						volante();
 						giroAuto(grados,0.5);
 						//carDirection.set(grados/ 90, 0,grados/ 90);
 					}if(velocidad<0){
 						velocidad=velocidad+0.001
 						//mesh1.rotation.z-=camera.rotation.z/ 90;
-						
+						volante();
 						giroAuto(grados,0.5);
 						//carDirection.set(grados/ 90, 0,grados/ 90);
 					}
@@ -403,39 +431,15 @@
 				
 
 				
-				if(camera.rotation.z-ultimogiro>0){//+
-					
-					if(grados>Math.PI){
-						if(grados>0){//+
-							grados=grados*-1;
-						}
-						grados=grados+0.005;
-
-					}else{
-						grados=grados+0.005;
-					}
-				}else{//-
-					if(grados<-Math.pi){
-						if(grados<0){//+
-							grados=grados*-1;
-							
-						}
-						grados=grados-0.005;
-					}else{
-						grados=grados-0.005;
-
-					}
-					
-				}
-				console.log(grados);
+				
+				
 
 				renderer.render( scene, camera );
 
 			
 				
 			console.log("Rotacion con ",camera.rotation.z);
-			//console.log("grados",grados)
-			mesh1.rotation.y=camera.rotation.z;
+			console.log("grados",grados);
 			//console.log("Rotacion sin resta",camera.rotation.z);
 			
 				carDirection.normalize();
