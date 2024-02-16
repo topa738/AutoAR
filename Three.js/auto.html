@@ -58,9 +58,14 @@
 
 			var velocidad=0;
 			var carDirection = new THREE.Vector3(0, 0, 1);
+			let previousPosition = new THREE.Vector3();
+			let previousRotation = 0;
+			let grados=1.5;
 
 			let hitTestSource = null;
 			let hitTestSourceRequested = false;
+
+			var ultimogiro=0;
 
 			init();
 			animate();
@@ -126,7 +131,7 @@
 				var progressbar=document.getElementById('progress-bar');
 				
 				loader.load(
-					'./modelos/autogrande.glb',
+					'./modelos/auto_basico.glb',
 					function ( gltf ) {
 
 					mesh1 = gltf.scene.children[ 0 ];
@@ -134,11 +139,9 @@
 					//mesh1.scale.set( 0.005, 0.005, 0.005 );
 						console.log(mesh1);
 
-					mesh1.castShadow = true;
-					mesh1.receiveShadow = true;
-					mesh1.visible=false;
-					console.log()
-				
+					// mesh1.castShadow = true;
+					// mesh1.receiveShadow = true;
+					// mesh1.visible=false;
 					siguente();
 					},
 					function ( xhr ) {
@@ -157,22 +160,27 @@
 					contenedor.style.opacity=0;
 					window.addEventListener( 'resize', onWindowResize );
 			}
+		
+			
 			function onSelect() {
 
 				if ( reticle.visible && controles ) {
 					
 					reticle.matrix.decompose(mesh1.position, mesh1.quaternion, mesh1.scale);
 					scene.add( mesh1 );
-					mesh1.scale.addScalar(-0.998);
+					mesh1.scale.addScalar(-0.9);
 					mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z);
-					mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
+					//mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
+					mesh1.rotation.y=Math.PI/2;
 					controles=false;
 					group=getControles(group);//creo los controles
 					mesh1.visible=true;
 					colocado=true;
-
-
-					
+					if(camera.rotation.z>0){
+						ultimogiro=Math.PI/2;
+					}else{
+						ultimogiro=-Math.PI/2;
+					}
 
 				}else{
 					//const controller = event.target;
@@ -224,9 +232,31 @@
     }
 }
 
-			function updateCarPosition() {
+			/*function updateCarPosition() {
 				mesh1.position.addScaledVector(carDirection, velocidad);
-			}
+				if (accion === 'adelante' || accion === 'atras') {
+					
+    }*/
+	function updateCarPosition() {
+    
+	mesh1.position.addScaledVector(carDirection, velocidad);
+
+   
+
+}
+
+			function giroAuto(giroZ){
+		carDirection.set(
+        Math.cos(giroZ + Math.abs(0.5)),
+        0,
+        Math.sin(giroZ + Math.abs(0.5))	
+
+		
+    );
+	
+	
+	
+}
 
 			function getIntersections( controller ) {
 				tempMatrix.identity().extractRotation( controller.matrixWorld );
@@ -337,66 +367,76 @@
 				}
 				if (accion == 'adelante') {
 					if (velocidad < 0.03) {
-    velocidad = velocidad + 0.001;
+		velocidad = velocidad + 0.001;
+		giroAuto(grados,0.5);
+			}
+			}
 
-    // Ajustar la rotación del volante (carDirection) de manera suave
-    const giroVolante = 0.02;  // Ajusta este valor según sea necesario
+				if (accion == 'atras') {
+					if (velocidad > -0.03) {
+						velocidad = velocidad - 0.001;
+						giroAuto(grados,0.5);
+						
+					}
+					}
 
-    const giroZ = camera.rotation.z;
-
-    // Usamos el valor absoluto de giroVolante para asegurarnos de que el auto gire en la dirección del volante
-    carDirection.set(
-        Math.cos(giroZ + Math.abs(giroVolante)),
-        0,
-        Math.sin(giroZ + Math.abs(giroVolante))
-    );
-	///mesh1.rotation.z = giroZ + giroVolante;
-
-    console.log('adelante');
-}
-
-
-
-
-}
-
-if (accion == 'atras') {
-    if (velocidad > -0.03) {
-		
-		const giroZ = camera.rotation.z;
-        velocidad = velocidad - 0.001;
-		const giroVolante = 0.02;  // Ajusta este valor según sea necesario
-		carDirection.set(
-        Math.cos(giroZ + Math.abs(giroVolante)),
-        0,
-        Math.sin(giroZ + Math.abs(giroVolante))
-    );
-
-        
-    }
-}
 
 				if(accion=='stop'){ //reducira el valor hasta que llegue a cero 
 					if(velocidad>0){
 						velocidad=velocidad-0.001
 						//mesh1.rotation.z-=camera.rotation.z/ 90;
-						carDirection.set(camera.rotation.z/ 90, 0,camera.rotation.x/ 90);
+						giroAuto(grados,0.5);
+						//carDirection.set(grados/ 90, 0,grados/ 90);
 					}if(velocidad<0){
 						velocidad=velocidad+0.001
 						//mesh1.rotation.z-=camera.rotation.z/ 90;
-						carDirection.set(camera.rotation.z/ 90, 0,camera.rotation.x/ 90);
+						
+						giroAuto(grados,0.5);
+						//carDirection.set(grados/ 90, 0,grados/ 90);
 					}
 					if(velocidad==0){
 						carDirection.set(0, 0,0);
 					}
 				}
+				
 				updateCarPosition();
+				
+
+				
+				if(camera.rotation.z-ultimogiro>0){//+
+					
+					if(grados>Math.PI){
+						if(grados>0){//+
+							grados=grados*-1;
+						}
+						grados=grados+0.005;
+
+					}else{
+						grados=grados+0.005;
+					}
+				}else{//-
+					if(grados<-Math.pi){
+						if(grados<0){//+
+							grados=grados*-1;
+							
+						}
+						grados=grados-0.005;
+					}else{
+						grados=grados-0.005;
+
+					}
+					
+				}
+				console.log(grados);
 
 				renderer.render( scene, camera );
 
 			
-
 				
+			console.log("Rotacion con ",camera.rotation.z);
+			//console.log("grados",grados)
+			mesh1.rotation.y=camera.rotation.z;
+			//console.log("Rotacion sin resta",camera.rotation.z);
 			
 				carDirection.normalize();
 
