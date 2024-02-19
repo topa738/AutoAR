@@ -61,6 +61,7 @@
 			let previousPosition = new THREE.Vector3();
 			let previousRotation = 0;
 			let grados=1.5;
+			let ruedas;
 
 			let hitTestSource = null;
 			let hitTestSourceRequested = false;
@@ -136,8 +137,11 @@
 
 					mesh1 = gltf.scene.children[ 0 ];
 
+						console.log(mesh1.children)
+
 					//mesh1.scale.set( 0.005, 0.005, 0.005 );
-						console.log(mesh1);
+					ruedas=mesh1.children[9];
+						console.log(mesh1.children[9]);
 
 					// mesh1.castShadow = true;
 					// mesh1.receiveShadow = true;
@@ -169,10 +173,17 @@
 					
 					reticle.matrix.decompose(mesh1.position, mesh1.quaternion, mesh1.scale);
 					scene.add( mesh1 );
+<<<<<<< Updated upstream
 					mesh1.scale.addScalar(-0.995);
 					mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z);
 					mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
 					mesh1.rotation.y=Math.PI;
+=======
+					//mesh1.scale.addScalar(-0.995);
+					mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z);
+					//mesh1.rotation.set( Math.PI/2, Math.PI, Math.PI, 'XYZ' );
+					mesh1.rotation.x=Math.PI/2;
+>>>>>>> Stashed changes
 					controles=false;
 					group=getControles(group);//creo los controles
 					mesh1.visible=true;
@@ -428,6 +439,7 @@
 				}
 				
 				updateCarPosition();
+				ruedas.rotation.x+=0.10;
 				
 
 				
