@@ -45,7 +45,7 @@
 			var colocado=false;
 			const tempMatrix = new THREE.Matrix4();
 			let reticle,controles=true;
-			var accion='stop',timeout=500;
+			var accion='stop',timeout=500,ultimaaccion;
 			let accionTimeout;
 
 			var velocidad=0;
@@ -196,11 +196,11 @@
 		console.log("ando")
 				ultimoDivConSVG.appendChild(newGameControls);
 
-				newButton1.addEventListener('click', function() {
+		newButton1.addEventListener('click', function() {
             // Realiza acciones cuando se presiona el botón "Accelerar"
 			accion = 'atras';
 							
-			terminarrr() 
+			//terminarrr() 
             console.log('Botón "Accelerar" presionado');
             // Puedes realizar más acciones aquí si es necesario
         });
@@ -209,46 +209,46 @@
             // Realiza acciones cuando se presiona el botón "Reversa"
             console.log('Botón "Reversa" presionado');
 			accion = 'adelante';
-			terminarrr() 
+			//terminarrr() 
             // Puedes realizar más acciones aquí si es necesario
         });
 		newButton1.addEventListener('mousedown', function() {
-    // Realiza acciones cuando se presiona el botón "Accelerar"
-    accion = 'adelante';
-	terminarrr();
+			// Realiza acciones cuando se presiona el botón "Accelerar"
+			accion = 'atras';
+			//terminarrr();
 
-    console.log('Botón "Accelerar" presionado');
-    // Puedes realizar más acciones aquí si es necesario
-});
+			console.log('Botón "Accelerar" presionado');
+			// Puedes realizar más acciones aquí si es necesario
+		});
 
-newButton2.addEventListener('mousedown', function() {
-    // Realiza acciones cuando se presiona el botón "Reversa"
-    console.log('Botón "Reversa" presionado');
-    accion = 'atras';
-    terminarrr();
-    // Puedes realizar más acciones aquí si es necesario
-});
+		newButton2.addEventListener('mousedown', function() {
+			// Realiza acciones cuando se presiona el botón "Reversa"
+			console.log('Botón "Reversa" presionado');
+			accion = 'adelante';
+			//terminarrr();
+			// Puedes realizar más acciones aquí si es necesario
+		});
 
-// También puedes agregar los eventos 'mouseup' y 'mouseleave' para detener la acción cuando se suelta el botón
-newButton1.addEventListener('mouseup', function() {
-    // Detener acciones cuando se suelta el botón "Accelerar"
-    accion = 'stop';
-});
+		// También puedes agregar los eventos 'mouseup' y 'mouseleave' para detener la acción cuando se suelta el botón
+		/*newButton1.addEventListener('mouseup', function() {
+			// Detener acciones cuando se suelta el botón "Accelerar"
+			accion = 'stop';
+		});
+		
+		newButton2.addEventListener('mouseup', function() {
+			// Detener acciones cuando se suelta el botón "Reversa"
+			accion = 'stop';
+		});*/
 
-newButton2.addEventListener('mouseup', function() {
-    // Detener acciones cuando se suelta el botón "Reversa"
-    accion = 'stop';
-});
 
-newButton1.addEventListener('mouseleave', function() {
-    // Detener acciones cuando el puntero sale del área del botón "Accelerar"
-    accion = 'stop';
-});
-
-newButton2.addEventListener('mouseleave', function() {
-    // Detener acciones cuando el puntero sale del área del botón "Reversa"
-    accion = 'stop';
-});
+		newButton1.addEventListener('mouseleave', function() {
+			// Detener acciones cuando el puntero sale del área del botón "Accelerar"
+			accion = 'stop';
+		});
+		newButton2.addEventListener('mouseleave', function() {
+			// Detener acciones cuando el puntero sale del área del botón "Reversa"
+			accion = 'stop';
+		});
 
 
 					colocado=true;
@@ -404,13 +404,22 @@ newButton2.addEventListener('mouseleave', function() {
 					if (velocidad < 0.02) {
 					velocidad = velocidad + 0.001;
 					volante();
-					giroAuto(grados,0.5);
+					giroAuto(grados,0);
 					mesh1.children[2].rotation.x+=0.01;
 							mesh1.children[1].rotation.x+=0.01;
 							mesh1.children[3].rotation.x+=0.01;
 							mesh1.children[4].rotation.x+=0.01;
 
 					
+						}else{
+							if(velocidad=>0.002){
+								volante();
+							giroAuto(grados,0);
+							mesh1.children[2].rotation.x+=0.01;
+							mesh1.children[1].rotation.x+=0.01;
+							mesh1.children[3].rotation.x+=0.01;
+							mesh1.children[4].rotation.x+=0.01;
+							}
 						}
 						}
 
@@ -418,13 +427,23 @@ newButton2.addEventListener('mouseleave', function() {
 					if (velocidad > -0.02) {
 						velocidad = velocidad - 0.001;
 						volante();
-						giroAuto(grados,0.5);
+						giroAuto(grados,0);
 						mesh1.children[2].rotation.x-=0.01;
 						mesh1.children[1].rotation.x-=0.01;
 						mesh1.children[3].rotation.x-=0.01;
 						mesh1.children[4].rotation.x-=0.01;
 						
 						
+					}else{
+						if(velocidad=> -0.02){
+								volante();
+						giroAuto(grados,0);
+						mesh1.children[2].rotation.x-=0.01;
+						mesh1.children[1].rotation.x-=0.01;
+						mesh1.children[3].rotation.x-=0.01;
+						mesh1.children[4].rotation.x-=0.01;
+						
+							}
 					}
 					}
 
@@ -433,14 +452,15 @@ newButton2.addEventListener('mouseleave', function() {
 					if(velocidad>0){
 						velocidad=velocidad-0.001
 						volante();
-						giroAuto(grados,0.5);
+						giroAuto(grados,0);
 					}if(velocidad<0){
 						velocidad=velocidad+0.001
 						volante();
-						giroAuto(grados,0.5);
+						giroAuto(grados,0);
 					}
 					if(velocidad==0){
 						carDirection.set(0, 0,0);
+						console.log(velocidad)
 					}
 				}
 				
@@ -454,10 +474,14 @@ newButton2.addEventListener('mouseleave', function() {
 
 				renderer.render( scene, camera );
 
-				console.log(camera.rotation.z-ultimogiro,"ultimo giro")
+				//console.log(camera.rotation.z-ultimogiro,"ultimo giro")
 
 			
-
+			if(accion!=ultimaaccion){
+				console.log(velocidad);
+			console.log(accion);
+			ultimaaccion=accion;
+			}
 			
 				
 
