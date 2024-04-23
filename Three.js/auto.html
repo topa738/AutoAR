@@ -1,25 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>three.js ar - hit test</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-		<link type="text/css" rel="stylesheet" href="main.css">
-	</head>
 
-	<body>
+<head>
+	<title>three.js ar - hit test</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
 
-        <div id="progress-bar-container">
-            <label for="progress-bar">Loading...</label>
-            <progress id="progress-bar" value="0" max="100"></progress>
-        </div>
+<body>
+
+	<div id="progress-bar-container">
+		<label for="progress-bar">Loading...</label>
+		<progress id="progress-bar" value="0" max="100"></progress>
+	</div>
+	<dialog id="model-dialog">
 		
-	
-		<!-- Import maps polyfill -->
-		<!-- Remove this when import maps will be widely supported -->
-		<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+		<div id="model2-preview" class="imagen1"><img src="./img/model1.png"  alt="Modelo 1"></div>
+		
+		
+		<div id="model1-preview" class="imagen2"><img src="./img/model2.png"  alt="Modelo 2" ></div>
+		
+	  </dialog>
+	  
 
-		<script type="importmap">
+
+	<!-- Import maps polyfill -->
+	<!-- Remove this when import maps will be widely supported -->
+	<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+	<script type="importmap">
             {
               "imports": {
                 "three": "https://unpkg.com/three@0.152.0/build/three.module.js"
@@ -27,312 +37,344 @@
             }
           </script>
 
-          <script type="module">
-			import * as THREE from 'three';
+	<script type="module">
+		import * as THREE from 'three';
+
+		import { GLTFLoader } from 'https://unpkg.com/three@0.163.0/examples/jsm/loaders/GLTFLoader.js';
+		import { DRACOLoader } from 'https://unpkg.com/three@0.163.0/examples/jsm/loaders/DRACOLoader.js';
+		//import { ARButton } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/ARButton.js';
+		import { ARButton } from './ARButton.js';
+		import { getControles } from "./controles.js"
+		// import { XREstimatedLight } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/XREstimatedLight.js';
+
+
+		let camera, scene, renderer;
+		let INTERSECTED, raycaster;
+		let controller;
+		var mesh1;
+		var ultimo;
+		var colocado = false;
+		const tempMatrix = new THREE.Matrix4();
+		let reticle, controles = true;
+		var accion = 'stop', timeout = 500, ultimaaccion;
+		let accionTimeout;
+
+		var velocidad = 0;
+		var carDirection = new THREE.Vector3(0, 0, 1);
+		let previousPosition = new THREE.Vector3();
+		let previousRotation = 0;
+		let grados = 1.5;
+
+		let hitTestSource = null;
+		let hitTestSourceRequested = false;
+
+		var ultimogiro = 0;
+
+		init();
+		animate();
+
+		function init() {
+
+			const container = document.createElement('div');
+			document.body.appendChild(container);
+
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+			const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 3);
+			light.position.set(0.5, 1, 0.25);
+			scene.add(light);
+
+
+
+			renderer = new THREE.WebGLRenderer({ alpha: true });
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.xr.enabled = true;
+			container.appendChild(renderer.domElement);
+
+			//
+			const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] })
+			document.body.appendChild(arButton);
+			arButton.style.backgroundColor = '#00FF00'; // Código hexadecimal para el color verde
+			arButton.style.color = 'white'; // Cambia el color del texto para que sea legible en el fondo verde
+
+			// Otros estilos opcionales
+			arButton.style.border = '1px solid #00FF00'; // Borde verde para resaltar el botón
+			arButton.style.padding = '10px';
+
+
+
+			const geometry = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 32).translate(0, 0.1, 0);
+
+
+			raycaster = new THREE.Raycaster();
+
+			controller = renderer.xr.getController(0);
+			controller.addEventListener('selectstart', onSelect);
+			scene.add(controller);
+
+			reticle = new THREE.Mesh(
+				new THREE.RingGeometry(0.08, 0.10, 32).rotateX(- Math.PI / 2),
+				new THREE.MeshBasicMaterial()
+			);
+			reticle.matrixAutoUpdate = false;
+			reticle.visible = false;
+			scene.add(reticle);
+
+			//
+
+			window.addEventListener('resize', onWindowResize);
+			const dracoLoader = new DRACOLoader();
+			dracoLoader.setDecoderPath('https://unpkg.com/three@0.163.0/examples/jsm/libs/draco/');
+			dracoLoader.setDecoderConfig({ type: 'js' });
+
+			const loader = new GLTFLoader();
+			loader.setDRACOLoader(dracoLoader);
+			const renderer1 = new THREE.WebGLRenderer({ antialias: true });
+			renderer1.setSize(500, 400);
+			var progressbar = document.getElementById('progress-bar');
+			const modelDialog = document.getElementById('model-dialog');
+			const model1Preview = document.getElementById('model1-preview');
+			const model2Preview = document.getElementById('model2-preview');
 			
-			import { GLTFLoader } from 'https://unpkg.com/three@0.152.0/examples/jsm/loaders/GLTFLoader.js';
-            //import { ARButton } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/ARButton.js';
-			import { ARButton } from './ARButton.js';
-			import { getControles } from "./controles.js"
-           // import { XREstimatedLight } from 'https://unpkg.com/three@0.152.0/examples/jsm/webxr/XREstimatedLight.js';
-
-
-			let camera, scene, renderer;
-			let INTERSECTED,raycaster;
-			let controller;
-            var mesh1;
-			var ultimo;
-			var colocado=false;
-			const tempMatrix = new THREE.Matrix4();
-			let reticle,controles=true;
-			var accion='stop',timeout=500,ultimaaccion;
-			let accionTimeout;
-
-			var velocidad=0;
-			var carDirection = new THREE.Vector3(0, 0, 1);
-			let previousPosition = new THREE.Vector3();
-			let previousRotation = 0;
-			let grados=1.5;
-
-			let hitTestSource = null;
-			let hitTestSourceRequested = false;
-
-			var ultimogiro=0;
-
-			init();
-			animate();
-
-			function init() {
-
-				const container = document.createElement( 'div' );
-				document.body.appendChild( container );
-
-				scene = new THREE.Scene();
-
-				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 20 );
-
-				const light = new THREE.HemisphereLight( 0xffffff, 0xbbbbff, 3 );
-				light.position.set( 0.5, 1, 0.25 );
-				scene.add( light );
-
-				
-
-				renderer = new THREE.WebGLRenderer( { alpha: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight);
-				renderer.xr.enabled = true;
-				container.appendChild( renderer.domElement );
-
-				//
-				const arButton=ARButton.createButton( renderer, { requiredFeatures: [ 'hit-test' ] } )
-				document.body.appendChild( arButton );
-				arButton.style.backgroundColor = '#00FF00'; // Código hexadecimal para el color verde
-				arButton.style.color = 'white'; // Cambia el color del texto para que sea legible en el fondo verde
-
-					// Otros estilos opcionales
-				arButton.style.border = '1px solid #00FF00'; // Borde verde para resaltar el botón
-				arButton.style.padding = '10px';
 
 
 
-				const geometry = new THREE.CylinderGeometry( 0.1, 0.1, 0.2, 32 ).translate( 0, 0.1, 0 );
+// Muestra el cuadro de diálogo cuando la página se carga
+modelDialog.showModal();
+
+// Oculta el cuadro de diálogo y carga el modelo seleccionado cuando el usuario hace una selección
+model1Preview.addEventListener('click', function(){
+    document.body.removeChild(modelDialog);
+  loadModel('./modelos/scene3.glb').then((gltf) => {
+	console.log(gltf)
+    mesh1 = gltf.scene;
+    siguente();
+  });
+});
+
+model2Preview.addEventListener('click', function(){
+	document.body.removeChild(modelDialog);
+  loadModel('./modelos/scene.glb').then((gltf) => {
+	console.log(gltf)
+    mesh1 = gltf.scene;
+    siguente();
+  });
+});
 
 
-				raycaster = new THREE.Raycaster();
+// Carga el modelo seleccionado
+function loadModel(modelPath) {
+  return new Promise((resolve, reject) => {
+    loader.load(
+      modelPath,
+      function (gltf) {
+        resolve(gltf);
+      },
+      function (xhr) {
+        console.log(xhr);
+        progressbar.value = (xhr.loaded / xhr.total) * 100;
+      },
+      function (error) {
+        reject(error);
+      }
+    );
+  });
+}
 
-				controller = renderer.xr.getController( 0 );
-				controller.addEventListener( 'selectstart', onSelect );
-				scene.add( controller );
-
-				reticle = new THREE.Mesh(
-					new THREE.RingGeometry( 0.08, 0.10, 32 ).rotateX( - Math.PI / 2 ),
-					new THREE.MeshBasicMaterial()
-				);
-				reticle.matrixAutoUpdate = false;
-				reticle.visible = false;
-				scene.add( reticle );
-
-				//
-
-				window.addEventListener( 'resize', onWindowResize );
-                const loader = new GLTFLoader();
-				var progressbar=document.getElementById('progress-bar');
-				
-				loader.load(
-					'./modelos/scene.glb',
-					function ( gltf ) {
-
-					mesh1 = gltf.scene;
+			
 
 
+				function siguente() {
 
-					//mesh1.scale.set( 0.005, 0.005, 0.005 );
-						console.log(mesh1);
-
-					// mesh1.castShadow = true;
-					// mesh1.receiveShadow = true;
-					// mesh1.visible=false;
-					siguente();
-					},
-					function ( xhr ) {
-
-						progressbar.value= ( xhr.loaded / 17467004) * 100;
-						
-						if(xhr.loaded/xhr.total==1){
-							console.log("termino de cargar")
-						}
-					
-					},
-					function ( error ) {
-						console.error( error );
-					}
-				);
-				function siguente(){
-					
 					//quito el contenido de carga
 					var contenedor = document.getElementById('progress-bar-container');
-					contenedor.style.visibility='hidden';
-					contenedor.style.opacity=0;
-					window.addEventListener( 'resize', onWindowResize );
+					contenedor.style.visibility = 'hidden';
+					contenedor.style.opacity = 0;
+					window.addEventListener('resize', onWindowResize);
+				}
+
+
+				function onSelect() {
+
+					if (reticle.visible && controles) {
+
+						reticle.matrix.decompose(mesh1.position, mesh1.quaternion, mesh1.scale);
+						scene.add(mesh1);
+						//mesh1.scale.addScalar(1);
+						mesh1.position.set(mesh1.position.x, mesh1.position.y - 0.5, mesh1.position.z);
+						mesh1.rotation.set(Math.PI, Math.PI, Math.PI, 'XYZ');
+						// mesh1.rotation.y=Math.PI/;
+						controles = false;
+						mesh1.visible = true;
+						scene.remove(reticle);
+
+
+						////nuevos controles 
+						// Crea un nuevo contenedor para los botones adicionales
+						const newGameControls = document.createElement('div');
+						newGameControls.className = 'game-controls';
+						newGameControls.style.position = 'absolute';
+						newGameControls.style.right = '100px'
+						newGameControls.style.top = '100px'
+						newGameControls.style.userSelect = 'none'
+
+						// class="game-controls"style="position: absolute; right: 20px; top: 20px;"
+						const newButton1 = document.createElement('button');
+						newButton1.textContent = '→';
+
+						const newButton2 = document.createElement('button');
+						newButton2.textContent = '←';
+
+						// Agrega los nuevos botones al nuevo contenedor
+						newGameControls.appendChild(newButton1);
+						newGameControls.appendChild(newButton2);
+						const ultimoDivConSVG = document.body.lastChild;
+
+						console.log("ando")
+						ultimoDivConSVG.appendChild(newGameControls);
+
+						newButton1.addEventListener('click', function () {
+							// Realiza acciones cuando se presiona el botón "Accelerar"
+							accion = 'atras';
+
+							//terminarrr() 
+							console.log('Botón "Accelerar" presionado');
+							// Puedes realizar más acciones aquí si es necesario
+						});
+
+						newButton2.addEventListener('click', function () {
+							// Realiza acciones cuando se presiona el botón "Reversa"
+							console.log('Botón "Reversa" presionado');
+							accion = 'adelante';
+							//terminarrr() 
+							// Puedes realizar más acciones aquí si es necesario
+						});
+						newButton1.addEventListener('mousedown', function () {
+							// Realiza acciones cuando se presiona el botón "Accelerar"
+							accion = 'atras';
+							//terminarrr();
+
+							console.log('Botón "Accelerar" presionado');
+							// Puedes realizar más acciones aquí si es necesario
+						});
+
+						newButton2.addEventListener('mousedown', function () {
+							// Realiza acciones cuando se presiona el botón "Reversa"
+							console.log('Botón "Reversa" presionado');
+							accion = 'adelante';
+							//terminarrr();
+							// Puedes realizar más acciones aquí si es necesario
+						});
+
+						// También puedes agregar los eventos 'mouseup' y 'mouseleave' para detener la acción cuando se suelta el botón
+						/*newButton1.addEventListener('mouseup', function() {
+							// Detener acciones cuando se suelta el botón "Accelerar"
+							accion = 'stop';
+						});
+						
+						newButton2.addEventListener('mouseup', function() {
+							// Detener acciones cuando se suelta el botón "Reversa"
+							accion = 'stop';
+						});*/
+
+
+						newButton1.addEventListener('mouseleave', function () {
+							// Detener acciones cuando el puntero sale del área del botón "Accelerar"
+							accion = 'stop';
+						});
+						newButton2.addEventListener('mouseleave', function () {
+							// Detener acciones cuando el puntero sale del área del botón "Reversa"
+							accion = 'stop';
+						});
+
+
+						colocado = true;
+						if (camera.rotation.z > 0) {
+							ultimogiro = Math.PI / 2;
+						} else {
+							ultimogiro = -Math.PI / 2;
+						}
+
+					} else {
+
+
+					}
+
+				}
 			}
-		
+
 			
-			function onSelect() {
-
-				if ( reticle.visible && controles ) {
-					
-					reticle.matrix.decompose(mesh1.position, mesh1.quaternion, mesh1.scale);
-					scene.add( mesh1 );
-					//mesh1.scale.addScalar(1);
-					 mesh1.position.set( mesh1.position.x, mesh1.position.y-0.5, mesh1.position.z);
-					mesh1.rotation.set( Math.PI, Math.PI, Math.PI, 'XYZ' );
-					// mesh1.rotation.y=Math.PI/;
-					controles=false;
-					mesh1.visible=true;
-					scene.remove(reticle);
-
-
-					////nuevos controles 
-					// Crea un nuevo contenedor para los botones adicionales
-					const newGameControls = document.createElement('div');
-        newGameControls.className = 'game-controls';
-		newGameControls.style.position='absolute';
-		newGameControls.style.right='100px'
-		newGameControls.style.top='100px'
-		newGameControls.style.userSelect='none'
-
-        // class="game-controls"style="position: absolute; right: 20px; top: 20px;"
-        const newButton1 = document.createElement('button');
-        newButton1.textContent = '→';
-        
-        const newButton2 = document.createElement('button');
-        newButton2.textContent = '←';
-
-        // Agrega los nuevos botones al nuevo contenedor
-        newGameControls.appendChild(newButton1);
-        newGameControls.appendChild(newButton2);
-		const ultimoDivConSVG = document.body.lastChild;
-
-		console.log("ando")
-				ultimoDivConSVG.appendChild(newGameControls);
-
-		newButton1.addEventListener('click', function() {
-            // Realiza acciones cuando se presiona el botón "Accelerar"
-			accion = 'atras';
-							
-			//terminarrr() 
-            console.log('Botón "Accelerar" presionado');
-            // Puedes realizar más acciones aquí si es necesario
-        });
-
-        newButton2.addEventListener('click', function() {
-            // Realiza acciones cuando se presiona el botón "Reversa"
-            console.log('Botón "Reversa" presionado');
-			accion = 'adelante';
-			//terminarrr() 
-            // Puedes realizar más acciones aquí si es necesario
-        });
-		newButton1.addEventListener('mousedown', function() {
-			// Realiza acciones cuando se presiona el botón "Accelerar"
-			accion = 'atras';
-			//terminarrr();
-
-			console.log('Botón "Accelerar" presionado');
-			// Puedes realizar más acciones aquí si es necesario
-		});
-
-		newButton2.addEventListener('mousedown', function() {
-			// Realiza acciones cuando se presiona el botón "Reversa"
-			console.log('Botón "Reversa" presionado');
-			accion = 'adelante';
-			//terminarrr();
-			// Puedes realizar más acciones aquí si es necesario
-		});
-
-		// También puedes agregar los eventos 'mouseup' y 'mouseleave' para detener la acción cuando se suelta el botón
-		/*newButton1.addEventListener('mouseup', function() {
-			// Detener acciones cuando se suelta el botón "Accelerar"
-			accion = 'stop';
-		});
-		
-		newButton2.addEventListener('mouseup', function() {
-			// Detener acciones cuando se suelta el botón "Reversa"
-			accion = 'stop';
-		});*/
-
-
-		newButton1.addEventListener('mouseleave', function() {
-			// Detener acciones cuando el puntero sale del área del botón "Accelerar"
-			accion = 'stop';
-		});
-		newButton2.addEventListener('mouseleave', function() {
-			// Detener acciones cuando el puntero sale del área del botón "Reversa"
-			accion = 'stop';
-		});
-
-
-					colocado=true;
-					if(camera.rotation.z>0){
-						ultimogiro=Math.PI/2;
-					}else{
-						ultimogiro=-Math.PI/2;
-					}
-
-				}else{
-					
-					
-					}
-					
-				}
-				}
-			
-			function volante(){
-				if((camera.rotation.z>=1.7 || camera.rotation.z<=1.3) ){
+			function volante() {
+				if ((camera.rotation.z >= 1.7 || camera.rotation.z <= 1.3)) {
 					console.log("por aca+")
-					if(camera.rotation.z-ultimogiro<0){//+
-					if(grados>Math.PI){
-						if(grados>0){//+
-							grados=grados*-1;
-						}
-						grados=grados+0.01;
+					if (camera.rotation.z - ultimogiro < 0) {//+
+						if (grados > Math.PI) {
+							if (grados > 0) {//+
+								grados = grados * -1;
+							}
+							grados = grados + 0.01;
 
-					}else{
-						grados=grados+0.01;
-					}
-				}else{
-					if(grados<-Math.PI){
-						if(grados<0){//+
-							grados=grados*-1;
+						} else {
+							grados = grados + 0.01;
 						}
-						grados=grados-0.01;
-					}else{
-						grados=grados-0.01;
+					} else {
+						if (grados < -Math.PI) {
+							if (grados < 0) {//+
+								grados = grados * -1;
+							}
+							grados = grados - 0.01;
+						} else {
+							grados = grados - 0.01;
+						}
 					}
-				}
-				}else{console.log("por aca-")}
-				
-		}
+				} else { console.log("por aca-") }
+
+			}
 			function terminarrr() {
-    if (accion === 'adelante' || accion === 'atras') {
-        // Cancela el temporizador actual si existe
-        clearTimeout(accionTimeout);
+				if (accion === 'adelante' || accion === 'atras') {
+					// Cancela el temporizador actual si existe
+					clearTimeout(accionTimeout);
 
-        // Configura un nuevo temporizador y extiende el tiempo
-        accionTimeout = setTimeout(function() {
-            accion = 'stop';
-        }, timeout);
-        // Puedes ajustar el tiempo extendido si es necesario
-        //timeout += 500; // por ejemplo, aumentar en 500 milisegundos cada vez
-    } else {
-        // Otras acciones o código aquí si es necesario
-    }
-}
+					// Configura un nuevo temporizador y extiende el tiempo
+					accionTimeout = setTimeout(function () {
+						accion = 'stop';
+					}, timeout);
+					// Puedes ajustar el tiempo extendido si es necesario
+					//timeout += 500; // por ejemplo, aumentar en 500 milisegundos cada vez
+				} else {
+					// Otras acciones o código aquí si es necesario
+				}
+			}
 
-	function updateCarPosition() {
-    
-	mesh1.position.addScaledVector(carDirection, velocidad);
-	mesh1.rotation.y=grados;
-	
+			function updateCarPosition() {
 
-   
+				mesh1.position.addScaledVector(carDirection, velocidad);
+				mesh1.rotation.y = grados;
 
-}
 
-			function giroAuto(giroZ){
-		carDirection.set(
-			Math.sin(-giroZ ),
-        0,
-        	 Math.cos(-giroZ )
-    );}
 
-			
+
+			}
+
+			function giroAuto(giroZ) {
+				carDirection.set(
+					Math.sin(-giroZ),
+					0,
+					Math.cos(-giroZ)
+				);
+			}
+
+
 
 			function onWindowResize() {
 
 				camera.aspect = window.innerWidth / window.innerHeight;
 				camera.updateProjectionMatrix();
 
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setSize(window.innerWidth, window.innerHeight);
 
 			}
 
@@ -340,50 +382,50 @@
 
 			function animate() {
 
-				renderer.setAnimationLoop( render );
+				renderer.setAnimationLoop(render);
 
 			}
 
-			function render( timestamp, frame ) {
+			function render(timestamp, frame) {
 
-				if ( frame ) {
+				if (frame) {
 
 					const referenceSpace = renderer.xr.getReferenceSpace();
 					const session = renderer.xr.getSession();
 
-					if ( hitTestSourceRequested === false ) {
+					if (hitTestSourceRequested === false) {
 
-						session.requestReferenceSpace( 'viewer' ).then( function ( referenceSpace ) {
+						session.requestReferenceSpace('viewer').then(function (referenceSpace) {
 
-							session.requestHitTestSource( { space: referenceSpace } ).then( function ( source ) {
+							session.requestHitTestSource({ space: referenceSpace }).then(function (source) {
 
 								hitTestSource = source;
 
-							} );
+							});
 
-						} );
+						});
 
-						session.addEventListener( 'end', function () {
+						session.addEventListener('end', function () {
 
 							hitTestSourceRequested = false;
 							hitTestSource = null;
 
-						} );
+						});
 
 						hitTestSourceRequested = true;
 
 					}
 
-					if ( hitTestSource ) {
+					if (hitTestSource) {
 
-						const hitTestResults = frame.getHitTestResults( hitTestSource );
+						const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-						if ( hitTestResults.length ) {
+						if (hitTestResults.length) {
 
-							const hit = hitTestResults[ 0 ];
+							const hit = hitTestResults[0];
 
 							reticle.visible = true;
-							reticle.matrix.fromArray( hit.getPose( referenceSpace ).transform.matrix );
+							reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
 
 						} else {
 
@@ -392,101 +434,102 @@
 						}
 
 					}
-					if ( reticle.visible) {
-					
-					
-				}
-				
+					if (reticle.visible) {
 
-					
+
+					}
+
+
+
 				}
 				if (accion == 'adelante') {
 					if (velocidad < 0.02) {
-					velocidad = velocidad + 0.001;
-					volante();
-					giroAuto(grados,0);
-					mesh1.children[2].rotation.x+=0.01;
-							mesh1.children[1].rotation.x+=0.01;
-							mesh1.children[3].rotation.x+=0.01;
-							mesh1.children[4].rotation.x+=0.01;
+						velocidad = velocidad + 0.001;
+						volante();
+						giroAuto(grados, 0);
+						mesh1.children[2].rotation.x += velocidad;
+						mesh1.children[1].rotation.x += velocidad;
+						mesh1.children[3].rotation.x += velocidad;
+						mesh1.children[4].rotation.x += velocidad;
 
-					
-						}else{
-							if(velocidad=>0.002){
-								volante();
-							giroAuto(grados,0);
-							mesh1.children[2].rotation.x+=0.01;
-							mesh1.children[1].rotation.x+=0.01;
-							mesh1.children[3].rotation.x+=0.01;
-							mesh1.children[4].rotation.x+=0.01;
-							}
+
+					} else {
+						if (velocidad => 0.002) {
+							volante();
+							giroAuto(grados, 0);
+							mesh1.children[2].rotation.x += velocidad;
+							mesh1.children[1].rotation.x += velocidad;
+							mesh1.children[3].rotation.x += velocidad;
+							mesh1.children[4].rotation.x += velocidad;
 						}
-						}
+					}
+				}
 
 				if (accion == 'atras') {
 					if (velocidad > -0.02) {
 						velocidad = velocidad - 0.001;
 						volante();
-						giroAuto(grados,0);
-						mesh1.children[2].rotation.x-=0.01;
-						mesh1.children[1].rotation.x-=0.01;
-						mesh1.children[3].rotation.x-=0.01;
-						mesh1.children[4].rotation.x-=0.01;
-						
-						
-					}else{
-						if(velocidad=> -0.02){
-								volante();
-						giroAuto(grados,0);
-						mesh1.children[2].rotation.x-=0.01;
-						mesh1.children[1].rotation.x-=0.01;
-						mesh1.children[3].rotation.x-=0.01;
-						mesh1.children[4].rotation.x-=0.01;
-						
-							}
-					}
-					}
+						giroAuto(grados, 0);
+						mesh1.children[2].rotation.x -= velocidad;
+						mesh1.children[1].rotation.x -= velocidad;
+						mesh1.children[3].rotation.x -= velocidad;
+						mesh1.children[4].rotation.x -= velocidad;
 
 
-				if(accion=='stop'){ //reducira el valor hasta que llegue a cero 
-					if(velocidad>0){
-						velocidad=velocidad-0.001
-						volante();
-						giroAuto(grados,0);
-					}if(velocidad<0){
-						velocidad=velocidad+0.001
-						volante();
-						giroAuto(grados,0);
+					} else {
+						if (velocidad => -0.02) {
+							volante();
+							giroAuto(grados, 0);
+							mesh1.children[2].rotation.x -= velocidad;
+							mesh1.children[1].rotation.x -= velocidad;
+							mesh1.children[3].rotation.x -= velocidad;
+							mesh1.children[4].rotation.x -= velocidad;
+
+						}
 					}
-					if(velocidad==0){
-						carDirection.set(0, 0,0);
+				}
+
+
+				if (accion == 'stop') { //reducira el valor hasta que llegue a cero 
+					if (velocidad > 0) {
+						velocidad = velocidad - 0.001
+						volante();
+						giroAuto(grados, 0);
+					} if (velocidad < 0) {
+						velocidad = velocidad + 0.001
+						volante();
+						giroAuto(grados, 0);
+					}
+					if (velocidad == 0) {
+						carDirection.set(0, 0, 0);
 						console.log(velocidad)
 					}
 				}
-				
-				mesh1.children[2].rotation.y=camera.rotation.z-ultimogiro;
-				mesh1.children[1].rotation.y=camera.rotation.z-ultimogiro;
-				
-				
-				
+
+				mesh1.children[2].rotation.y = camera.rotation.z - ultimogiro;
+				mesh1.children[1].rotation.y = camera.rotation.z - ultimogiro;
+
+
+
 				updateCarPosition();
 				carDirection.normalize();
 
-				renderer.render( scene, camera );
+				renderer.render(scene, camera);
 
 				//console.log(camera.rotation.z-ultimogiro,"ultimo giro")
 
-			
-			if(accion!=ultimaaccion){
-				console.log(velocidad);
-			console.log(accion);
-			ultimaaccion=accion;
-			}
-			
-				
+
+				if (accion != ultimaaccion) {
+					console.log(velocidad);
+					console.log(accion);
+					ultimaaccion = accion;
+				}
+
+
 
 			}
 
-		</script>
-	</body>
+	</script>
+</body>
+
 </html>
